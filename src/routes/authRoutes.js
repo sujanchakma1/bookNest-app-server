@@ -6,7 +6,7 @@ const upload = require('../middleware/upload')
 
 const router = express.Router()
 
-router.post('/register',upload.single("image"), register)
+router.post('/register',upload.single("photoURL"), register)
 router.post('/login', login)
 router.post('/social-login', socialLogin)
 router.get('/me', protect, getMe)
