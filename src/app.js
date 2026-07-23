@@ -20,24 +20,25 @@ app.use(compression());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://your-frontend.vercel.app",
+  "https://localhost",
   "capacitor://localhost",
+  "https://your-frontend.vercel.app", // যদি থাকে
 ];
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Postman/mobile apps may not send an Origin header
+    origin(origin, callback) {
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
+      console.log("Blocked Origin:", origin);
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-  }),
+  })
 );
 app.use(express.json());
 app.use(cookieParser());
