@@ -17,18 +17,28 @@ const register = asyncHandler(async (req, res) => {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing)
     return res.status(409).json({ message: "Email already registered" });
-  let photoURL;
+  let photoURL = null;
 
   if (req.file) {
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "booknest/users",
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "booknest/users",
+        },
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        },
+      );
+
+      stream.end(req.file.buffer);
     });
 
-    photoURL = result.secure_url;
+    photoURL = uploadResult.secure_url;
   }
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { name, email, password: hashed },
+    data: { name, email, password: hashed,photoURL },
   });
 
   const token = generateToken({ id: user.id, role: user.role });
