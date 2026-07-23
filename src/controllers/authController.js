@@ -3,6 +3,7 @@ const prisma = require('../config/db')
 const generateToken = require('../utils/generateToken')
 const asyncHandler = require('../utils/asyncHandler')
 const admin = require('../config/firebaseAdmin')
+const cloudinary = require("../config/cloudinary");
 
 // @route POST /api/auth/register
 const register = asyncHandler(async (req, res) => {
@@ -13,7 +14,12 @@ const register = asyncHandler(async (req, res) => {
 
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) return res.status(409).json({ message: 'Email already registered' })
+    let photoURL = "";
 
+  if (req.file) {
+    const result = await cloudinary(req.file.path);
+    photoURL = result.secure_url;
+  }
   const hashed = await bcrypt.hash(password, 10)
   const user = await prisma.user.create({
     data: { name, email, password: hashed },
