@@ -1,5 +1,6 @@
 const prisma = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
+const createNotification = require("../utils/createNotification");
 
 const DUE_DAYS = 14;
 
@@ -14,6 +15,23 @@ const requestBorrow = asyncHandler(async (req, res) => {
   const request = await prisma.borrowRequest.create({
     data: { userId: req.user.id, bookId, status: "PENDING" },
   });
+  await createNotification(
+    req.user.id,
+    `You requested to borrow "${book.title}".`,
+  );
+
+  const admin = await prisma.user.findFirst({
+    where: {
+      role: "ADMIN",
+    },
+  });
+
+  if (admin) {
+    await createNotification(
+      admin.id,
+      `${req.user.name} requested to borrow "${book.title}".`,
+    );
+  }
   res.status(201).json(request);
 });
 
@@ -61,7 +79,12 @@ const approveBorrowRequest = asyncHandler(async (req, res) => {
   dueDate.setDate(dueDate.getDate() + DUE_DAYS);
 
   const request = await prisma.borrowRequest.findUnique({
-    where: { id: req.params.id },
+    where: {
+      id: req.params.id,
+    },
+    include: {
+      book: true,
+    },
   });
   if (!request) return res.status(404).json({ message: "Request not found" });
   if (request.status !== "PENDING")
@@ -77,25 +100,88 @@ const approveBorrowRequest = asyncHandler(async (req, res) => {
       data: { availableCopies: { decrement: 1 } },
     }),
   ]);
+  await createNotification(
+    request.userId,
+    `Your borrow request for "${request.book.title}" has been approved.`,
+  );
+  const admin = await prisma.user.findFirst({
+    where: {
+      role: "ADMIN",
+    },
+  });
+
+  if (admin) {
+    await createNotification(
+      admin.id,
+      `${req.user.name} requested to borrow "${request.book.title} you has been approved".`,
+    );
+  }
 
   res.json(updated);
 });
 
 // @route PATCH /api/borrow/:id/reject  (admin)
 const rejectBorrowRequest = asyncHandler(async (req, res) => {
-  const updated = await prisma.borrowRequest.update({
-    where: { id: req.params.id },
-    data: { status: "REJECTED" },
+  const request = await prisma.borrowRequest.findUnique({
+    where: {
+      id: req.params.id,
+    },
+    include: {
+      book: true,
+    },
   });
+
+  if (!request) {
+    return res.status(404).json({
+      message: "Request not found",
+    });
+  }
+
+  const updated = await prisma.borrowRequest.update({
+    where: {
+      id: req.params.id,
+    },
+    data: {
+      status: "REJECTED",
+    },
+  });
+
+  await createNotification(
+    request.userId,
+    `Your borrow request for "${request.book.title}" has been rejected.`,
+  );
+  const admin = await prisma.user.findFirst({
+    where: {
+      role: "ADMIN",
+    },
+  });
+
+  if (admin) {
+    await createNotification(
+      admin.id,
+      `${req.user.name} requested to borrow "${request.book.title} you has been rejected".`,
+    );
+  }
+
   res.json(updated);
 });
 
 // @route PATCH /api/borrow/:id/return  (student or admin)
 const returnBook = asyncHandler(async (req, res) => {
   const request = await prisma.borrowRequest.findUnique({
-    where: { id: req.params.id },
+    where: {
+      id: req.params.id,
+    },
+    include: {
+      book: true,
+    },
   });
-  if (!request) return res.status(404).json({ message: "Request not found" });
+
+  if (!request) {
+    return res.status(404).json({
+      message: "Request not found",
+    });
+  }
 
   const [updated] = await prisma.$transaction([
     prisma.borrowRequest.update({
@@ -107,6 +193,22 @@ const returnBook = asyncHandler(async (req, res) => {
       data: { availableCopies: { increment: 1 } },
     }),
   ]);
+  await createNotification(
+    request.userId,
+    `You returned "${request.book.title}". Thank you! 📚`,
+  );
+  const admin = await prisma.user.findFirst({
+    where: {
+      role: "ADMIN",
+    },
+  });
+
+  if (admin) {
+    await createNotification(
+      admin.id,
+      `${req.user.name} returned "${request.book.title}".`,
+    );
+  }
 
   res.json(updated);
 });
