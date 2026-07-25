@@ -4,7 +4,7 @@ const createNotification = require("../utils/createNotification");
 
 // Every minute (development)
 // Production: "0 9 * * *"
-cron.schedule("* * * * *", async () => {
+cron.schedule("0 9 * * *", async () => {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
