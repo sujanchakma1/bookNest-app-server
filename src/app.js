@@ -63,6 +63,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/notifications", notificationRoutes);
 
+
 app.use(notFound);
 app.use(errorHandler);
 
